@@ -1,0 +1,23 @@
+{
+  "name": "ubu-discord-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Discord bot to power MC servers via the Pterodactyl API.",
+  "type": "module",
+  "main": "src/index.js",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "deploy": "node src/deploy-commands.js",
+    "dev": "node --watch src/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "pino": "^9.5.0",
+    "pino-pretty": "^11.3.0",
+    "undici": "^6.21.0"
+  }
+}
