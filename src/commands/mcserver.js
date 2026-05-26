@@ -97,7 +97,7 @@ export async function execute(interaction) {
     return;
   }
 
-  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+  await interaction.deferReply();
 
   let servers;
   try {
