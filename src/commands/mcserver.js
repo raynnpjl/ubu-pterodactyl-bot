@@ -4,7 +4,7 @@ import { getStatus, power, PteroError } from '../services/pterodactyl.js';
 import { hasAllowedRole } from '../utils/auth.js';
 import { logger } from '../utils/logger.js';
 
-const ACTIONS = ['start', 'stop', 'restart', 'kill'];
+const ACTIONS = ['start', 'stop', 'restart', 'kill', 'status'];
 
 export const data = new SlashCommandBuilder()
   .setName('mcserver')
@@ -115,6 +115,21 @@ export async function execute(interaction) {
     await interaction.editReply(
       'That server is no longer in the Minecraft list. Run the command again to refresh.',
     );
+    return;
+  }
+
+  if (action === 'status') {
+    try {
+      const state = await getStatus(identifier);
+      logger.info(
+        { userId, userTag, server: server.name, action, prevState: state, result: 'status' },
+        'audit',
+      );
+      await interaction.editReply(`\`${server.name}\`: status is \`${state}\`.`);
+    } catch (err) {
+      logger.error({ err, userId, userTag, server: server.name, action }, 'status query failed');
+      await interaction.editReply(`\`${server.name}\`: ${mapErrorMessage(err)}`);
+    }
     return;
   }
 
