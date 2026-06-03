@@ -1,4 +1,4 @@
-# ubu-discord-bot
+# ubu-pterodactyl-bot
 
 Discord bot that powers Minecraft servers in a Pterodactyl panel from chat.
 
@@ -43,11 +43,11 @@ Both go in `.env`.
 2. Right-click the role → Copy Role ID (requires Developer Mode in Discord settings).
 3. Put the ID into `ALLOWED_ROLE_IDS`. Multiple IDs are comma-separated.
 
-## Local dev setup
+## Local dev setup (ubuntu)
 
 ```bash
-git clone <your repo> ubu-discord-bot
-cd ubu-discord-bot
+git clone https://github.com/raynnpjl/ubu-pterodactyl-bot
+cd ubu-pterodactyl-bot
 cp .env.example .env
 chmod 600 .env
 # edit .env: fill in all values
@@ -73,7 +73,7 @@ Then in Discord: type `/mcserver` and pick from the dropdown.
 | `SERVER_CACHE_TTL_MS` | Cache TTL for autocomplete (default `30000`) |
 | `LOG_LEVEL` | `trace` / `debug` / `info` / `warn` / `error` (default `info`) |
 
-## Smoke test checklist
+## Testing
 
 1. `curl -H "Authorization: Bearer $PTERO_APP_API_KEY" "$PTERO_BASE_URL/api/application/nests" | jq` — Minecraft nest visible.
 2. `npm run deploy` — Discord registers the command.
