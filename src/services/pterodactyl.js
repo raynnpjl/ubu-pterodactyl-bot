@@ -141,6 +141,14 @@ export async function getStatus(identifier) {
   return data?.attributes?.current_state ?? 'unknown';
 }
 
+export async function getResources(identifier) {
+  const clientKey = process.env.PTERO_CLIENT_API_KEY;
+  const data = await pteroFetch(`/api/client/servers/${identifier}/resources`, {
+    apiKey: clientKey,
+  });
+  return data?.attributes ?? null;
+}
+
 const VALID_SIGNALS = new Set(['start', 'stop', 'restart', 'kill']);
 
 export async function power(identifier, signal) {

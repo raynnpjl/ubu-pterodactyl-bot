@@ -2,12 +2,9 @@
 
 Discord bot that powers Minecraft servers in a Pterodactyl panel from chat.
 
-```
-/mcserver <mc_server> <action>
-```
-
-- `<mc_server>` — autocomplete dropdown of all Minecraft servers in your panel (filtered by nest name).
-- `<action>` — `start` | `stop` | `restart` | `kill`.
+**Two control modes:**
+1. `/mcserver <server> <action>` — slash command; instant reply.
+2. `/mcpanel setup` — posts persistent **control panel** (dropdown + buttons) and **status panel** (live stats) in the current channel.
 
 Runs on Node.js 20+, talks to Pterodactyl, managed by systemd.
 
@@ -17,6 +14,7 @@ Runs on Node.js 20+, talks to Pterodactyl, managed by systemd.
 - **Power**: Pterodactyl **Client API** (`POST /api/client/servers/{id}/power`) issues the signal. Wings handles graceful MC shutdown / world save on `stop` and `restart`. `kill` is a hard SIGKILL — only use it if a server is unresponsive.
 - **Cache**: The MC server list is cached in memory for `SERVER_CACHE_TTL_MS` (default 30s) so autocomplete stays under Discord's 3s deadline.
 - **Permissions**: Only members with at least one role in `ALLOWED_ROLE_IDS` can run the command. Anyone else gets an ephemeral denial.
+- **Crash monitor** (opt-in): when `MONITOR_ALERT_CHANNEL_ID` is set, the bot polls every server's power state every `MONITOR_POLL_INTERVAL_MS` and posts a red alert (optionally pinging `MONITOR_PING_ROLE_ID`) when a server drops from `running` to `offline` unexpectedly, plus a green notice when it recovers. Stops/kills/restarts issued through the bot are suppressed. **Limitation**: the Pterodactyl API doesn't report *why* a server stopped, so a stop issued directly in the panel or game console may trigger a false crash alert (the bot suppresses ones that pass through the `stopping` state, but a poll can miss it).
 
 ## Prerequisites
 
@@ -48,9 +46,9 @@ Both go in `.env`.
 ```bash
 git clone https://github.com/raynnpjl/ubu-pterodactyl-bot
 cd ubu-pterodactyl-bot
-cp .env.example .env
+touch .env
 chmod 600 .env
-# edit .env: fill in all values
+# fill .env with the keys from the Configuration reference below
 npm install
 npm run deploy
 npm start
@@ -71,15 +69,30 @@ Then in Discord: type `/mcserver` and pick from the dropdown.
 | `PTERO_CLIENT_API_KEY` | Client API key (power actions) |
 | `MC_NEST_NAME` | Nest name used to filter MC servers (default `Minecraft`) |
 | `SERVER_CACHE_TTL_MS` | Cache TTL for autocomplete (default `30000`) |
+| `MONITOR_ALERT_CHANNEL_ID` | Channel ID for crash alerts. **Unset disables the crash monitor.** |
+| `MONITOR_POLL_INTERVAL_MS` | Crash-monitor poll cadence (default `60000`) |
+| `MONITOR_PING_ROLE_ID` | Optional role ID to `@mention` on a crash alert |
 | `LOG_LEVEL` | `trace` / `debug` / `info` / `warn` / `error` (default `info`) |
 
 ## Testing
 
 1. `curl -H "Authorization: Bearer $PTERO_APP_API_KEY" "$PTERO_BASE_URL/api/application/nests" | jq` — Minecraft nest visible.
-2. `npm run deploy` — Discord registers the command.
-3. `npm start` — bot logs `discord bot ready`.
-4. In Discord: `/mcserver` — dropdown lists every MC server in your panel.
-5. Pick a test server → `start` → reply within ~1s; panel console shows boot.
-6. Re-issue `start` → "already running" reply (no-op short-circuit).
-7. Stop the panel briefly → command returns "panel unreachable" within 5s.
-8. Use an account without the allowed role → "not authorized" reply.
+2. `npm run deploy` — Discord registers both `/mcserver` and `/mcpanel` commands.
+3. `npm start` — bot logs `discord bot ready` and "no panel state found — awaiting /mcpanel setup".
+4. **Slash command** (`/mcserver`):
+   - `/mcserver` → dropdown lists every MC server in your panel.
+   - Pick a test server → `start` → reply within ~1s; panel console shows boot.
+   - Re-issue `start` → "already running" reply (no-op short-circuit).
+5. **Persistent panels** (`/mcpanel`):
+   - Run `/mcpanel setup` in a test channel → two messages appear (Control Panel and Status Panel).
+   - Bot logs "panels posted" and creates `panel-state.json`.
+   - **Control Panel** — select server from dropdown → ephemeral response with 4 action buttons.
+     Click an action → ephemeral shows result, buttons vanish.
+   - **Status Panel** — select server → ephemeral shows state / CPU / RAM / disk / uptime.
+   - Bot restart → panels refresh (dropdowns updated), no new messages posted.
+6. **Role check** — use an account without the allowed role → "not authorized" for both slash command and panels.
+7. **Crash monitor** (separate channel, optional):
+   - Set `MONITOR_ALERT_CHANNEL_ID` to a Discord channel ID.
+   - Restart bot → logs "crash monitor enabled".
+   - Kill a test server from the panel → red alert appears in the monitor channel within one poll tick.
+   - Start it back → green "back online" notice once.
