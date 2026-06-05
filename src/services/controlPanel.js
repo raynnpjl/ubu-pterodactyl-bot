@@ -4,6 +4,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
 } from 'discord.js';
 import { getMcServers } from './serverCache.js';
 import { executeAction } from './serverControl.js';
@@ -14,10 +15,37 @@ import { logger } from '../utils/logger.js';
 const CTRL_SELECT_ID = 'ctrl:select';
 const CTRL_ACTION_PREFIX = 'ctrl:action:';
 
-export function buildControlPanelPayload(servers) {
+function buildButtons(identifier) {
+  const actions = ['start', 'stop', 'restart', 'kill'];
+  const buttons = actions.map((action) => {
+    let style = ButtonStyle.Primary;
+    if (action === 'start') {
+      style = ButtonStyle.Success;
+    } else if (action === 'stop' || action === 'kill') {
+      style = ButtonStyle.Danger;
+    }
+
+    return new ButtonBuilder()
+      .setCustomId(`${CTRL_ACTION_PREFIX}${action}:${identifier}`)
+      .setLabel(action.charAt(0).toUpperCase() + action.slice(1))
+      .setStyle(style);
+  });
+
+  return new ActionRowBuilder().addComponents(buttons);
+}
+
+export function buildControlPanelPayload(servers, opts = {}) {
+  const defaultId = servers[0]?.identifier;
+  const defaultName = servers[0]?.name;
+
+  const { selectedId = defaultId, selectedName = defaultName, resultText = null } = opts;
+
+  let description = resultText ? `Selected: ${selectedName}\n${resultText}` : `Selected: ${selectedName}`;
+
   const serverOptions = servers.map((s) => ({
     label: s.name,
     value: s.identifier,
+    default: s.identifier === selectedId,
   }));
 
   const selectMenu = new StringSelectMenuBuilder()
@@ -25,14 +53,15 @@ export function buildControlPanelPayload(servers) {
     .setPlaceholder('Select a server')
     .addOptions(serverOptions);
 
-  const row = new ActionRowBuilder().addComponents(selectMenu);
+  const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+  const buttonRow = buildButtons(selectedId);
 
   const embed = new EmbedBuilder()
     .setColor(0x5865f2)
     .setTitle('MC Server Control Panel')
-    .setDescription('Select a server, then choose an action in the ephemeral response.');
+    .setDescription(description);
 
-  return { embeds: [embed], components: [row] };
+  return { embeds: [embed], components: [selectRow, buttonRow] };
 }
 
 export async function startControlPanel(client) {
@@ -63,7 +92,7 @@ export async function handleControlSelect(interaction) {
   if (!hasAllowedRole(interaction)) {
     await interaction.reply({
       content: 'You do not have permission to use the control panel.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -76,7 +105,7 @@ export async function handleControlSelect(interaction) {
     logger.error({ err }, 'controlPanel: failed to load servers for action buttons');
     await interaction.reply({
       content: 'Failed to load server list. Try again shortly.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
@@ -85,56 +114,39 @@ export async function handleControlSelect(interaction) {
   if (!server) {
     await interaction.reply({
       content: 'Server no longer in the list. Try selecting again.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
-  const actions = ['start', 'stop', 'restart', 'kill'];
-  const buttons = actions.map((action) => {
-    let style = ButtonStyle.Primary;
-    let emoji = '';
-    if (action === 'start') {
-      style = ButtonStyle.Success;
-      emoji = '▶';
-    } else if (action === 'stop' || action === 'kill') {
-      style = ButtonStyle.Danger;
-      emoji = action === 'stop' ? '⏹' : '✕';
-    } else if (action === 'restart') {
-      style = ButtonStyle.Primary;
-      emoji = '↻';
-    }
-    return new ButtonBuilder()
-      .setCustomId(`${CTRL_ACTION_PREFIX}${action}:${identifier}`)
-      .setLabel(action.charAt(0).toUpperCase() + action.slice(1))
-      .setStyle(style)
-      .setEmoji(emoji);
+  const payload = buildControlPanelPayload(servers, {
+    selectedId: identifier,
+    selectedName: server.name,
   });
 
-  const row = new ActionRowBuilder().addComponents(buttons);
-
-  const embed = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setTitle(`Selected: ${server.name}`)
-    .setDescription('Choose an action below.');
-
-  await interaction.reply({
-    embeds: [embed],
-    components: [row],
-    ephemeral: true,
-  });
+  await interaction.update(payload);
 }
 
 export async function handleControlButton(interaction) {
   if (!hasAllowedRole(interaction)) {
     await interaction.reply({
       content: 'You do not have permission to perform this action.',
-      ephemeral: true,
+      flags: MessageFlags.Ephemeral,
     });
     return;
   }
 
-  const [, action, identifier] = interaction.customId.split(':');
+  const parts = interaction.customId.split(':');
+  const action = parts[2];
+  const identifier = parts[3];
+
+  if (!action || !identifier) {
+    await interaction.reply({
+      content: 'Invalid button. Try selecting a server again.',
+      flags: MessageFlags.Ephemeral,
+    });
+    return;
+  }
 
   await interaction.deferUpdate();
 
@@ -143,10 +155,26 @@ export async function handleControlButton(interaction) {
     servers = await getMcServers();
   } catch (err) {
     logger.error({ err }, 'controlPanel: failed to load servers for action execution');
-    await interaction.editReply({
-      content: 'Failed to load server list. Try again shortly.',
-      components: [],
-    });
+    const server = servers.find((s) => s.identifier === identifier);
+    await interaction.editReply(
+      buildControlPanelPayload(servers, {
+        selectedId: identifier,
+        selectedName: server?.name || 'Unknown',
+        resultText: 'Failed to load server list. Try again shortly.',
+      })
+    );
+    return;
+  }
+
+  const server = servers.find((s) => s.identifier === identifier);
+  if (!server) {
+    await interaction.editReply(
+      buildControlPanelPayload(servers, {
+        selectedId: identifier,
+        selectedName: 'Unknown',
+        resultText: 'Server not found.',
+      })
+    );
     return;
   }
 
@@ -156,8 +184,11 @@ export async function handleControlButton(interaction) {
     servers,
   });
 
-  await interaction.editReply({
-    content: result,
-    components: [],
+  const payload = buildControlPanelPayload(servers, {
+    selectedId: identifier,
+    selectedName: server.name,
+    resultText: result,
   });
+
+  await interaction.editReply(payload);
 }

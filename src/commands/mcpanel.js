@@ -1,6 +1,7 @@
 import { MessageFlags, SlashCommandBuilder } from 'discord.js';
 import { buildControlPanelPayload } from '../services/controlPanel.js';
-import { buildStatusPanelPayload } from '../services/statusPanel.js';
+import { buildStatusPanelPayload, attachStatusPanel } from '../services/statusPanel.js';
+import { getResources } from '../services/pterodactyl.js';
 import { writePanelState } from '../services/panelState.js';
 import { hasAllowedRole } from '../utils/auth.js';
 import { logger } from '../utils/logger.js';
@@ -44,8 +45,15 @@ export async function execute(interaction) {
     const { getMcServers } = await import('../services/serverCache.js');
     const servers = await getMcServers();
 
+    if (!servers.length) {
+      await interaction.editReply('No Minecraft servers found in the panel.');
+      return;
+    }
+
     const controlPayload = buildControlPanelPayload(servers);
-    const statusPayload = buildStatusPanelPayload(servers);
+    const selectedId = servers[0].identifier;
+    const resources = await getResources(selectedId).catch(() => null);
+    const statusPayload = buildStatusPanelPayload(servers, selectedId, resources);
 
     const controlMsg = await interaction.channel.send(controlPayload);
     const statusMsg = await interaction.channel.send(statusPayload);
@@ -58,8 +66,11 @@ export async function execute(interaction) {
       statusPanel: {
         channelId: interaction.channel.id,
         messageId: statusMsg.id,
+        selectedIdentifier: selectedId,
       },
     });
+
+    await attachStatusPanel(statusMsg, servers);
 
     logger.info(
       {
@@ -67,12 +78,13 @@ export async function execute(interaction) {
         channelId: interaction.channel.id,
         controlMsgId: controlMsg.id,
         statusMsgId: statusMsg.id,
+        selectedId,
       },
-      'mcpanel: panels posted'
+      'mcpanel: panels posted and polling started'
     );
 
     await interaction.editReply(
-      'Control panel and status panel posted to this channel.'
+      'Control panel and status panel posted to this channel. Status panel is now live!'
     );
   } catch (err) {
     logger.error({ err }, 'mcpanel: setup failed');
