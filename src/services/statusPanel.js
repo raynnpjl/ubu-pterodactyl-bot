@@ -79,7 +79,7 @@ export function buildStatusPanelPayload(servers, selectedId, resources = null) {
   const cpu = resourcesNested.cpu_absolute || 0;
   const ram = resourcesNested.memory_bytes || 0;
   const disk = resourcesNested.disk_bytes || 0;
-  const uptime = resourcesNested.uptime || 0;
+  const uptime = (resourcesNested.uptime || 0) / 1000;
 
   const embed = new EmbedBuilder()
     .setColor(stateColor(state))
