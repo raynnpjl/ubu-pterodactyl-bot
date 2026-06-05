@@ -71,6 +71,7 @@ Then in Discord: type `/mcserver` and pick from the dropdown.
 | `SERVER_CACHE_TTL_MS` | Cache TTL for autocomplete (default `30000`) |
 | `MONITOR_ALERT_CHANNEL_ID` | Channel ID for crash alerts. **Unset disables the crash monitor.** |
 | `MONITOR_POLL_INTERVAL_MS` | Crash-monitor poll cadence (default `60000`) |
+| `MONITOR_POLL_INTERVAL_MS` | Status-monitor poll cadence (default `10000`) |
 | `MONITOR_PING_ROLE_ID` | Optional role ID to `@mention` on a crash alert |
 | `LOG_LEVEL` | `trace` / `debug` / `info` / `warn` / `error` (default `info`) |
 
