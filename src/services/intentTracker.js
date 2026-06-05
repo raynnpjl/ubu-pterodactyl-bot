@@ -3,7 +3,7 @@
 // API never reports *why* a server went offline, so this is the only reliable signal
 // for bot-initiated shutdowns.
 
-const POLL_INTERVAL_MS = Number(process.env.MONITOR_POLL_INTERVAL_MS || 60000);
+const POLL_INTERVAL_MS = Number(process.env.MONITOR_POLL_INTERVAL_MS || 10000);
 // Grace window: how long an intent stays valid before it expires. Two poll cycles
 // gives the monitor at least one tick to observe the resulting offline state.
 const GRACE_MS = POLL_INTERVAL_MS * 2;

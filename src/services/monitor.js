@@ -4,7 +4,7 @@ import { getStatus } from './pterodactyl.js';
 import { consumeIntentional } from './intentTracker.js';
 import { logger } from '../utils/logger.js';
 
-const POLL_INTERVAL_MS = Number(process.env.MONITOR_POLL_INTERVAL_MS || 60000);
+const POLL_INTERVAL_MS = Number(process.env.MONITOR_POLL_INTERVAL_MS || 10000);
 const CRASH_COLOR = 0xed4245;
 const RECOVERY_COLOR = 0x57f287;
 
