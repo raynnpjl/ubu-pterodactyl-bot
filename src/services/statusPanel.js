@@ -75,10 +75,11 @@ export function buildStatusPanelPayload(servers, selectedId, resources = null) {
   const server = servers.find((s) => s.identifier === selectedId);
   const serverName = server?.name || 'Unknown';
   const state = resources.current_state || 'unknown';
-  const cpu = resources.cpu_absolute || 0;
-  const ram = resources.memory_bytes || 0;
-  const disk = resources.disk_bytes || 0;
-  const uptime = resources.uptime || 0;
+  const resourcesNested = resources.resources || {};
+  const cpu = resourcesNested.cpu_absolute || 0;
+  const ram = resourcesNested.memory_bytes || 0;
+  const disk = resourcesNested.disk_bytes || 0;
+  const uptime = resourcesNested.uptime || 0;
 
   const embed = new EmbedBuilder()
     .setColor(stateColor(state))
