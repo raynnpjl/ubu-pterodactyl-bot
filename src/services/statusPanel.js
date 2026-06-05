@@ -11,7 +11,7 @@ import { hasAllowedRole } from '../utils/auth.js';
 import { logger } from '../utils/logger.js';
 
 const STATUS_SELECT_ID = 'status:select';
-const POLL_INTERVAL_MS = Number(process.env.MONITOR_POLL_INTERVAL_MS || 60000);
+const POLL_INTERVAL_MS = Number(process.env.MONITOR_POLL_INTERVAL_MS || 10000);
 
 // Module-level state for the live status panel
 let statusMessage = null;
@@ -101,6 +101,7 @@ async function pollStatusPanel() {
   try {
     const servers = await getMcServers();
     const resources = await getResources(currentSelectedId).catch(() => null);
+    logger.debug({ selectedId: currentSelectedId, resources }, 'statusPanel: poll tick');
     const payload = buildStatusPanelPayload(servers, currentSelectedId, resources);
     await statusMessage.edit(payload);
   } catch (err) {
